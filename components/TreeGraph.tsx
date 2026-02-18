@@ -2,7 +2,7 @@ import * as d3 from 'd3-hierarchy';
 import React, { useMemo } from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { SharedValue, useAnimatedProps, useAnimatedStyle, useDerivedValue, useSharedValue } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import Svg, { G, Path } from 'react-native-svg';
 import { FamilyMember, TreeData } from '../types';
 import { MemberNode } from './MemberNode';
@@ -13,72 +13,36 @@ interface TreeGraphProps {
     focalMemberId?: string | null;
 }
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-const AnimatedPath = Animated.createAnimatedComponent(Path);
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface AnimatedLinkProps {
     d: string;
-    sourceX: number;
-    sourceY: number;
-    targetX: number;
-    targetY: number;
-    translateX: SharedValue<number>;
-    translateY: SharedValue<number>;
-    scale: SharedValue<number>;
-    globalOffsetX: number;
-    globalOffsetY: number;
     strokeDasharray?: string;
     stroke?: string;
 }
 
 const AnimatedLink: React.FC<AnimatedLinkProps> = ({
-    d, sourceX, sourceY, targetX, targetY,
-    translateX, translateY, scale, globalOffsetX, globalOffsetY,
-    strokeDasharray, stroke = "#BDC3C7"
+    d, strokeDasharray, stroke = "#BDC3C7"
 }) => {
-    const isVisible = useDerivedValue(() => {
-        const sX = (sourceX + globalOffsetX) * scale.value + translateX.value;
-        const sY = (sourceY + globalOffsetY) * scale.value + translateY.value;
-        const tX = (targetX + globalOffsetX) * scale.value + translateX.value;
-        const tY = (targetY + globalOffsetY) * scale.value + translateY.value;
-
-        const minX = Math.min(sX, tX);
-        const maxX = Math.max(sX, tX);
-        const minY = Math.min(sY, tY);
-        const maxY = Math.max(sY, tY);
-
-        return (
-            maxX > -50 &&
-            minX < SCREEN_WIDTH + 50 &&
-            maxY > -50 &&
-            minY < SCREEN_HEIGHT + 50
-        );
-    });
-
-    const animatedProps = useAnimatedProps(() => ({
-        strokeOpacity: isVisible.value ? 1 : 0,
-    }));
-
     return (
-        <AnimatedPath
+        <Path
             d={d}
             fill="none"
             stroke={stroke}
             strokeWidth="2"
             strokeDasharray={strokeDasharray}
-            animatedProps={animatedProps}
         />
     );
 };
 
-const CANVAS_SIZE = 2000;
-const CANVAS_CENTER = CANVAS_SIZE / 2;
+const CANVAS_WIDTH = 4000;
+const CANVAS_HEIGHT = 1000;
+const CANVAS_CENTER_X = CANVAS_WIDTH / 2;
 const NODE_WIDTH = 100;
 const NODE_HEIGHT = 120;
 
 export const TreeGraph: React.FC<TreeGraphProps> = ({ data, onNodePress, focalMemberId }) => {
-    const translateX = useSharedValue(SCREEN_WIDTH / 2 - CANVAS_CENTER);
+    const translateX = useSharedValue(SCREEN_WIDTH / 2 - CANVAS_CENTER_X);
     const translateY = useSharedValue(100);
     const scale = useSharedValue(1);
 
@@ -128,23 +92,14 @@ export const TreeGraph: React.FC<TreeGraphProps> = ({ data, onNodePress, focalMe
         <View style={styles.container}>
             <GestureDetector gesture={Gesture.Simultaneous(panGesture, pinchGesture)}>
                 <Animated.View style={[styles.graphContainer, animatedStyle]}>
-                    <Svg width={CANVAS_SIZE} height={CANVAS_SIZE} style={StyleSheet.absoluteFill}>
-                        <G transform={`translate(${CANVAS_CENTER}, 200)`}>
+                    <Svg width={CANVAS_WIDTH} height={CANVAS_HEIGHT} style={StyleSheet.absoluteFill}>
+                        <G transform={`translate(${CANVAS_CENTER_X}, 200)`}>
                             {nodes.map((node) => {
                                 if (node.data.spouses && node.data.spouses.length > 0) {
                                     return node.data.spouses.map((_, sIdx) => (
                                         <AnimatedLink
                                             key={`spouse-link-${node.data.id}-${sIdx}`}
                                             d={`M${node.x || 0},${node.y || 0} L${(node.x || 0) + (sIdx + 1) * 110},${node.y || 0}`}
-                                            sourceX={node.x || 0}
-                                            sourceY={node.y || 0}
-                                            targetX={(node.x || 0) + (sIdx + 1) * 110}
-                                            targetY={node.y || 0}
-                                            translateX={translateX}
-                                            translateY={translateY}
-                                            scale={scale}
-                                            globalOffsetX={CANVAS_CENTER}
-                                            globalOffsetY={200}
                                             stroke="#FFA07A"
                                             strokeDasharray="5,5"
                                         />
@@ -175,25 +130,16 @@ export const TreeGraph: React.FC<TreeGraphProps> = ({ data, onNodePress, focalMe
                                     <AnimatedLink
                                         key={`link-${index}`}
                                         d={`M${sourceX},${sourceY} C${sourceX},${(sourceY + targetY) / 2} ${targetX},${(sourceY + targetY) / 2} ${targetX},${targetY}`}
-                                        sourceX={sourceX}
-                                        sourceY={sourceY}
-                                        targetX={targetX}
-                                        targetY={targetY}
-                                        translateX={translateX}
-                                        translateY={translateY}
-                                        scale={scale}
-                                        globalOffsetX={CANVAS_CENTER}
-                                        globalOffsetY={200}
                                     />
                                 );
                             })}
                         </G>
                     </Svg>
 
-                    <View style={{ position: 'absolute', left: CANVAS_CENTER, top: 200 }}>
-                        {nodes.map((node: d3.HierarchyPointNode<TreeData>) => (
+                    <View style={{ position: 'absolute', left: CANVAS_CENTER_X, top: 200 }}>
+                        {nodes.map((node: d3.HierarchyPointNode<TreeData>, index: number) => (
                             <View
-                                key={`node-container-${node.data.id}`}
+                                key={`node-container-${node.data.id}-${index}`}
                                 style={{ position: 'absolute', left: node.x, top: node.y }}
                             >
                                 <MemberNode
@@ -201,11 +147,6 @@ export const TreeGraph: React.FC<TreeGraphProps> = ({ data, onNodePress, focalMe
                                     x={0}
                                     y={0}
                                     onPress={onNodePress}
-                                    translateX={translateX}
-                                    translateY={translateY}
-                                    scale={scale}
-                                    globalX={CANVAS_CENTER + (node.x || 0)}
-                                    globalY={200 + (node.y || 0)}
                                     isFocal={String(node.data.id) === String(focalMemberId)}
                                 />
                                 {node.data.spouses?.map((spouse, sIdx) => (
@@ -218,11 +159,6 @@ export const TreeGraph: React.FC<TreeGraphProps> = ({ data, onNodePress, focalMe
                                             x={0}
                                             y={0}
                                             onPress={onNodePress}
-                                            translateX={translateX}
-                                            translateY={translateY}
-                                            scale={scale}
-                                            globalX={CANVAS_CENTER + (node.x || 0) + (sIdx + 1) * 110}
-                                            globalY={200 + (node.y || 0)}
                                             isFocal={String(spouse.id) === String(focalMemberId)}
                                         />
                                     </View>
@@ -242,7 +178,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#f8f9fa',
     },
     graphContainer: {
-        width: CANVAS_SIZE,
-        height: CANVAS_SIZE,
+        width: CANVAS_WIDTH,
+        height: CANVAS_HEIGHT,
     },
 });

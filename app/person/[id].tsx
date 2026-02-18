@@ -1,8 +1,11 @@
 import { supabase } from '@/lib/supabase';
-import { FamilyMember } from '@/types';
+import { FamilyMember, Union } from '@/types';
+import { buildDeepHierarchy, generateReportHTML } from '@/utils/report';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import * as Print from 'expo-print';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as Sharing from 'expo-sharing';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -16,6 +19,7 @@ export default function PersonDetail() {
     const [spouses, setSpouses] = useState<FamilyMember[]>([]);
     const [children, setChildren] = useState<FamilyMember[]>([]);
     const [loading, setLoading] = useState(true);
+    const [exporting, setExporting] = useState(false);
     const router = useRouter();
 
     const fetchPersonNode = async () => {
@@ -59,7 +63,7 @@ export default function PersonDetail() {
                     .or(`person1_id.eq.${id},person2_id.eq.${id}`);
 
                 if (unionsData) {
-                    const spouseIds = unionsData.map(u => u.person1_id === id ? u.person2_id : u.person1_id);
+                    const spouseIds = unionsData.map((u: Union) => u.person1_id === id ? u.person2_id : u.person1_id);
                     if (spouseIds.length > 0) {
                         const { data: spousesData } = await supabase
                             .from('family_members')
@@ -81,6 +85,28 @@ export default function PersonDetail() {
             Alert.alert('Error', error.message);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleExportDescendants = async () => {
+        if (!member) return;
+        setExporting(true);
+        try {
+            // We need ALL members and unions to build a deep hierarchy
+            const { data: allMembers } = await supabase.from('family_members').select('*');
+            const { data: allUnions } = await supabase.from('unions').select('*');
+
+            if (!allMembers || !allUnions) throw new Error('Could not fetch family data');
+
+            const tree = buildDeepHierarchy(member, allMembers, allUnions);
+            const html = generateReportHTML([tree]);
+
+            const { uri } = await Print.printToFileAsync({ html });
+            await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
+        } catch (error: any) {
+            Alert.alert('Export Error', error.message);
+        } finally {
+            setExporting(false);
         }
     };
 
@@ -111,6 +137,17 @@ export default function PersonDetail() {
                     <Ionicons name="arrow-back" size={24} color="#333" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Person Details</Text>
+                <TouchableOpacity
+                    onPress={handleExportDescendants}
+                    style={styles.iconButton}
+                    disabled={exporting}
+                >
+                    {exporting ? (
+                        <ActivityIndicator size="small" color="#34C759" />
+                    ) : (
+                        <Ionicons name="document-text" size={24} color="#34C759" />
+                    )}
+                </TouchableOpacity>
                 <TouchableOpacity
                     onPress={() => router.push(`/edit-person/${id}`)}
                     style={styles.iconButton}

@@ -1,29 +1,30 @@
 {
   "expo": {
-    "name": "vibeFamilyTree",
-    "slug": "vibeFamilyTree",
+    "name": "KutumbaMara",
+    "slug": "KutumbaMara",
     "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "vibefamilytree",
+    "orientation": "default",
+    "icon": "./assets/images/kutumba-icon.png",
+    "scheme": "kutumbamara",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/splash-icon.png",
+      "image": "./assets/images/kutumba-splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#000B1E"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.KutumbaMara"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/images/kutumba-icon.png",
+        "backgroundColor": "#000B1E"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.vibeFamilyTree"
+      "package": "com.anonymous.KutumbaMara"
     },
     "web": {
       "bundler": "metro",
