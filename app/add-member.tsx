@@ -79,6 +79,35 @@ export default function AddMemberScreen() {
         }
     }, [otherParentName, relationType]);
 
+    // Effect to default other parent if spouse exists (Child relation)
+    useEffect(() => {
+        if (relationType === 'child' && originId) {
+            const fetchSpouse = async () => {
+                const { data: unions, error: unionError } = await supabase
+                    .from('unions')
+                    .select('*')
+                    .or(`person1_id.eq.${originId},person2_id.eq.${originId}`)
+                    .limit(1);
+
+                if (!unionError && unions && unions.length > 0) {
+                    const unionData = unions[0];
+                    const spouseId = unionData.person1_id === originId ? unionData.person2_id : unionData.person1_id;
+                    const { data: spouseData, error: spouseError } = await supabase
+                        .from('family_members')
+                        .select('*')
+                        .eq('id', spouseId)
+                        .single();
+
+                    if (!spouseError && spouseData) {
+                        setOtherParentId(spouseData.id);
+                        setOtherParentName(spouseData.full_name);
+                    }
+                }
+            };
+            fetchSpouse();
+        }
+    }, [relationType, originId]);
+
     const handleSave = async () => {
         if (mode === 'create' && !fullName) {
             Alert.alert('Error', 'Full name is required');

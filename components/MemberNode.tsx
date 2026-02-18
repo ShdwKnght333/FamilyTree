@@ -1,22 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React from 'react';
-import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Animated, { SharedValue, useAnimatedStyle, useDerivedValue } from 'react-native-reanimated';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { FamilyMember } from '../types';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface MemberNodeProps {
     member: FamilyMember;
     x: number;
     y: number;
     onPress?: (member: FamilyMember) => void;
-    translateX: SharedValue<number>;
-    translateY: SharedValue<number>;
-    scale: SharedValue<number>;
-    globalX: number;
-    globalY: number;
     isFocal?: boolean;
 }
 
@@ -25,36 +17,15 @@ const DEFAULT_PORTRAIT = require('@/assets/images/defaultPortrait.jpg');
 
 export const MemberNode: React.FC<MemberNodeProps> = ({
     member, x, y, onPress,
-    translateX, translateY, scale, globalX, globalY,
     isFocal
 }) => {
-    const isVisible = useDerivedValue(() => {
-        if (globalX === undefined || globalY === undefined || isNaN(globalX) || isNaN(globalY)) {
-            return true;
-        }
-
-        const transformedX = globalX * scale.value + translateX.value;
-        const transformedY = globalY * scale.value + translateY.value;
-
-        const margin = (NODE_SIZE + 20) * scale.value;
-
-        return (
-            transformedX > -margin &&
-            transformedX < SCREEN_WIDTH + margin &&
-            transformedY > -margin &&
-            transformedY < SCREEN_HEIGHT + margin
-        );
-    });
-
-    const animatedStyle = useAnimatedStyle(() => ({
-        opacity: isVisible.value ? 1 : 0,
-    }));
 
     const isVirtual = member.id === 'virtual-root' || String(member.id).startsWith('marker-');
     const isMarker = String(member.id).startsWith('marker-');
+    const isDeceased = !!member.death_date;
 
     return (
-        <Animated.View style={animatedStyle}>
+        <View>
             <TouchableOpacity
                 style={[
                     styles.container,
@@ -68,16 +39,24 @@ export const MemberNode: React.FC<MemberNodeProps> = ({
             >
                 <View style={[
                     styles.card,
-                    isFocal && styles.focalCard,
                     isVirtual && styles.virtualCard,
-                    isMarker && styles.markerCard
+                    isMarker && styles.markerCard,
+                    isDeceased && styles.deceasedCard,
+                    isFocal && styles.focalCard
                 ]}>
                     {!isVirtual && (
-                        <Image
-                            source={member.portrait_url ? { uri: member.portrait_url } : DEFAULT_PORTRAIT}
-                            style={styles.portrait}
-                            contentFit="cover"
-                        />
+                        <View style={styles.portraitContainer}>
+                            <Image
+                                source={member.portrait_url ? { uri: member.portrait_url } : DEFAULT_PORTRAIT}
+                                style={[styles.portrait, isDeceased && styles.deceasedPortrait]}
+                                contentFit="cover"
+                            />
+                            {isDeceased && !member.portrait_url && (
+                                <View style={styles.deceasedOverlay}>
+                                    <Ionicons name="flower" size={20} color="#fff" />
+                                </View>
+                            )}
+                        </View>
                     )}
                     {isVirtual && (
                         <View style={styles.virtualIcon}>
@@ -96,7 +75,7 @@ export const MemberNode: React.FC<MemberNodeProps> = ({
                     </View>
                 </View>
             </TouchableOpacity>
-        </Animated.View>
+        </View>
     );
 };
 
@@ -179,5 +158,26 @@ const styles = StyleSheet.create({
         borderColor: '#007AFF',
         borderStyle: 'solid',
         opacity: 0.8,
-    }
+    },
+    portraitContainer: {
+        position: 'relative',
+    },
+    deceasedCard: {
+        borderColor: '#666',
+        borderWidth: 1,
+    },
+    deceasedPortrait: {
+        opacity: 0.6,
+    },
+    deceasedOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        borderRadius: (NODE_SIZE - 4) / 2,
+        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
 });
