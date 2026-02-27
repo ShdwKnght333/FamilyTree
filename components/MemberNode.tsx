@@ -1,3 +1,4 @@
+import { toDisplayDate } from '@/utils/dateUtils';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React from 'react';
@@ -71,7 +72,7 @@ export const MemberNode: React.FC<MemberNodeProps> = ({
                         <Text style={[styles.name, isMarker && styles.markerName]} numberOfLines={1}>
                             {member.full_name}
                         </Text>
-                        {!isVirtual && <Text style={styles.date}>{member.birth_date || 'Unknown'}</Text>}
+                        {!isVirtual && <Text style={styles.date}>{toDisplayDate(member.birth_date, 'birth')}</Text>}
                     </View>
                 </View>
             </TouchableOpacity>

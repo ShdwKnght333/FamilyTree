@@ -1,17 +1,32 @@
+import { MonthPicker } from '@/components/MonthPicker';
 import { supabase } from '@/lib/supabase';
 import { FamilyMember } from '@/types';
+import { formatToDBDate, toDBDate } from '@/utils/dateUtils';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import * as ScreenOrientation from 'expo-screen-orientation';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function AddMemberScreen() {
     const { originId, relationType } = useLocalSearchParams<{ originId: string; relationType: string }>();
     const [mode, setMode] = useState<'create' | 'link'>('create');
 
+    useFocusEffect(
+        useCallback(() => {
+            // Lock to portrait when focus
+            async function lockOrientation() {
+                await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+            }
+            lockOrientation();
+        }, [])
+    );
+
     // Create Mode States
     const [fullName, setFullName] = useState('');
-    const [birthDate, setBirthDate] = useState('');
+    const [birthYear, setBirthYear] = useState('');
+    const [birthMonth, setBirthMonth] = useState('');
+    const [birthDay, setBirthDay] = useState('');
     const [deathDate, setDeathDate] = useState('');
     const [bio, setBio] = useState('');
 
@@ -126,8 +141,8 @@ export default function AddMemberScreen() {
                 // 1. Create the new member
                 const newMemberObj: any = {
                     full_name: fullName,
-                    birth_date: birthDate || null,
-                    death_date: deathDate || null,
+                    birth_date: formatToDBDate(birthYear, birthMonth, birthDay, 'birth'),
+                    death_date: toDBDate(deathDate, 'death'),
                     bio: bio || null,
                 };
 
@@ -265,26 +280,48 @@ export default function AddMemberScreen() {
                                 placeholder="e.g. John Doe"
                             />
 
-                            <View style={styles.row}>
-                                <View style={{ flex: 1, marginRight: 10 }}>
-                                    <Text style={styles.label}>Birth Date</Text>
+                            <View style={styles.sectionHeader}>
+                                <Text style={styles.label}>Birth Date</Text>
+                                <Text style={styles.labelHint}>(Year is optional)</Text>
+                            </View>
+
+                            <Text style={styles.fieldLabel}>Month</Text>
+                            <MonthPicker selectedMonth={birthMonth} onSelect={setBirthMonth} />
+
+                            <View style={styles.dateRow}>
+                                <View style={styles.dayInputContainer}>
+                                    <Text style={styles.fieldLabel}>Date</Text>
                                     <TextInput
-                                        style={styles.input}
-                                        value={birthDate}
-                                        onChangeText={setBirthDate}
-                                        placeholder="YYYY-MM-DD"
+                                        style={styles.inputSmall}
+                                        value={birthDay}
+                                        onChangeText={setBirthDay}
+                                        placeholder="DD"
+                                        keyboardType="number-pad"
+                                        maxLength={2}
                                     />
                                 </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.label}>Death Date</Text>
+                                <View style={styles.yearInputContainer}>
+                                    <Text style={styles.fieldLabel}>Year</Text>
                                     <TextInput
-                                        style={styles.input}
-                                        value={deathDate}
-                                        onChangeText={setDeathDate}
-                                        placeholder="YYYY-MM-DD"
+                                        style={styles.inputSmall}
+                                        value={birthYear}
+                                        onChangeText={setBirthYear}
+                                        placeholder="YYYY"
+                                        keyboardType="number-pad"
                                     />
                                 </View>
                             </View>
+
+                            <View style={styles.spacing} />
+
+                            <Text style={styles.label}>Death Year</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={deathDate}
+                                onChangeText={setDeathDate}
+                                placeholder="YYYY"
+                                keyboardType="number-pad"
+                            />
 
                             {relationType === 'child' && (
                                 <View style={styles.relationshipBox}>
@@ -478,6 +515,36 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         marginBottom: 8,
         color: '#333',
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'baseline',
+        marginBottom: 8,
+    },
+    labelHint: {
+        fontSize: 12,
+        color: '#999',
+        marginLeft: 8,
+    },
+    dateRow: {
+        flexDirection: 'row',
+        marginBottom: 10,
+    },
+    yearInputContainer: {
+        flex: 1.5,
+        marginRight: 10,
+    },
+    dayInputContainer: {
+        flex: 1,
+    },
+    fieldLabel: {
+        fontSize: 12,
+        color: '#666',
+        marginBottom: 4,
+        marginLeft: 4,
+    },
+    spacing: {
+        height: 10,
     },
     row: {
         flexDirection: 'row',
