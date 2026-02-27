@@ -1,12 +1,15 @@
+import { MonthPicker } from '@/components/MonthPicker';
 import { supabase } from '@/lib/supabase';
 import { FamilyMember } from '@/types';
+import { formatToDBDate, parseDBDate, toDBDate } from '@/utils/dateUtils';
 import { Ionicons } from '@expo/vector-icons';
 import { decode } from 'base64-arraybuffer';
 import { File } from 'expo-file-system';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import * as ScreenOrientation from 'expo-screen-orientation';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 const DEFAULT_PORTRAIT = require('@/assets/images/defaultPortrait.jpg');
@@ -14,9 +17,21 @@ const DEFAULT_PORTRAIT = require('@/assets/images/defaultPortrait.jpg');
 export default function EditPerson() {
     const { id } = useLocalSearchParams();
     const [member, setMember] = useState<FamilyMember | null>(null);
+
+    useFocusEffect(
+        useCallback(() => {
+            // Lock to portrait when focus
+            async function lockOrientation() {
+                await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+            }
+            lockOrientation();
+        }, [])
+    );
     const [fullName, setFullName] = useState('');
-    const [birthDate, setBirthDate] = useState('');
-    const [deathDate, setBirthDeathDate] = useState(''); // Correcting state name to match usage
+    const [birthYear, setBirthYear] = useState('');
+    const [birthMonth, setBirthMonth] = useState('');
+    const [birthDay, setBirthDay] = useState('');
+    const [deathDate, setDeathDate] = useState('');
     const [bio, setBio] = useState('');
     const [portraitUrl, setPortraitUrl] = useState<string | null>(null);
     const [newImage, setNewImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
@@ -39,8 +54,18 @@ export default function EditPerson() {
                     setFullName(data.full_name);
                     setBio(data.bio || '');
                     setPortraitUrl(data.portrait_url);
-                    setBirthDate(data.birth_date || '');
-                    setBirthDeathDate(data.death_date || '');
+
+                    const parsedBirth = parseDBDate(data.birth_date);
+                    setBirthYear(parsedBirth.year);
+                    setBirthMonth(parsedBirth.month);
+                    setBirthDay(parsedBirth.day);
+
+                    // For death date, we still use the simplified single field (year only)
+                    // but we need to display it correctly (it's stored as YYYY-01-01)
+                    if (data.death_date) {
+                        const [dYear] = data.death_date.split('-');
+                        setDeathDate(dYear);
+                    }
                 }
             } catch (error: any) {
                 Alert.alert('Error', error.message);
@@ -106,8 +131,8 @@ export default function EditPerson() {
                     full_name: fullName,
                     bio: bio || null,
                     portrait_url: finalPortraitUrl,
-                    birth_date: birthDate || null,
-                    death_date: deathDate || null,
+                    birth_date: formatToDBDate(birthYear, birthMonth, birthDay, 'birth'),
+                    death_date: toDBDate(deathDate, 'death'),
                 })
                 .eq('id', id);
 
@@ -176,26 +201,48 @@ export default function EditPerson() {
                         placeholder="Enter full name"
                     />
 
-                    <View style={styles.row}>
-                        <View style={{ flex: 1, marginRight: 10 }}>
-                            <Text style={styles.label}>Birth Date</Text>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.label}>Birth Date</Text>
+                        <Text style={styles.labelHint}>(Year is optional)</Text>
+                    </View>
+
+                    <Text style={styles.fieldLabel}>Month</Text>
+                    <MonthPicker selectedMonth={birthMonth} onSelect={setBirthMonth} />
+
+                    <View style={styles.dateRow}>
+                        <View style={styles.dayInputContainer}>
+                            <Text style={styles.fieldLabel}>Date</Text>
                             <TextInput
-                                style={styles.input}
-                                value={birthDate}
-                                onChangeText={setBirthDate}
-                                placeholder="YYYY-MM-DD"
+                                style={styles.inputSmall}
+                                value={birthDay}
+                                onChangeText={setBirthDay}
+                                placeholder="DD"
+                                keyboardType="number-pad"
+                                maxLength={2}
                             />
                         </View>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.label}>Death Date</Text>
+                        <View style={styles.yearInputContainer}>
+                            <Text style={styles.fieldLabel}>Year</Text>
                             <TextInput
-                                style={styles.input}
-                                value={deathDate}
-                                onChangeText={setBirthDeathDate}
-                                placeholder="YYYY-MM-DD"
+                                style={styles.inputSmall}
+                                value={birthYear}
+                                onChangeText={setBirthYear}
+                                placeholder="YYYY"
+                                keyboardType="number-pad"
                             />
                         </View>
                     </View>
+
+                    <View style={styles.spacing} />
+
+                    <Text style={styles.label}>Death Year</Text>
+                    <TextInput
+                        style={styles.input}
+                        value={deathDate}
+                        onChangeText={setDeathDate}
+                        placeholder="YYYY"
+                        keyboardType="number-pad"
+                    />
 
                     <Text style={styles.label}>Biography</Text>
                     <TextInput
@@ -279,10 +326,6 @@ const styles = StyleSheet.create({
     form: {
         padding: 20,
     },
-    row: {
-        flexDirection: 'row',
-        marginBottom: 10,
-    },
     label: {
         fontSize: 14,
         fontWeight: '600',
@@ -290,12 +333,49 @@ const styles = StyleSheet.create({
         marginBottom: 8,
         marginLeft: 4,
     },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'baseline',
+        marginBottom: 8,
+    },
+    labelHint: {
+        fontSize: 12,
+        color: '#999',
+        marginLeft: 8,
+    },
+    dateRow: {
+        flexDirection: 'row',
+        marginBottom: 10,
+    },
+    yearInputContainer: {
+        flex: 1.5,
+        marginRight: 10,
+    },
+    dayInputContainer: {
+        flex: 1,
+    },
+    fieldLabel: {
+        fontSize: 12,
+        color: '#666',
+        marginBottom: 4,
+        marginLeft: 4,
+    },
+    spacing: {
+        height: 10,
+    },
     input: {
         backgroundColor: '#f0f0f0',
         borderRadius: 10,
         padding: 15,
         fontSize: 16,
         marginBottom: 25,
+    },
+    inputSmall: {
+        backgroundColor: '#f0f0f0',
+        borderRadius: 8,
+        padding: 12,
+        fontSize: 14,
+        marginBottom: 10,
     },
     bioInput: {
         height: 150,

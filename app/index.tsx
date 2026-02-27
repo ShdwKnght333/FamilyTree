@@ -1,6 +1,7 @@
 import { TreeGraph } from '@/components/TreeGraph';
 import { supabase } from '@/lib/supabase';
 import { FamilyMember, TreeData, Union } from '@/types';
+import { toDisplayDate } from '@/utils/dateUtils';
 import { buildHierarchy } from '@/utils/hierarchy';
 import { buildDeepHierarchy, findAncestors, generateTextReportHTML } from '@/utils/report';
 import { Ionicons } from '@expo/vector-icons';
@@ -107,15 +108,6 @@ export default function TreeScreen() {
       lockOrientation();
 
       fetchData();
-
-      return () => {
-        // Unlock or set back to portrait when leaving if desired
-        // For now, let's keep it flexible or return to portrait
-        async function unlockOrientation() {
-          await ScreenOrientation.unlockAsync();
-        }
-        unlockOrientation();
-      };
     }, [focalMemberId])
   );
 
@@ -280,7 +272,7 @@ export default function TreeScreen() {
                   <View style={styles.searchResultInfo}>
                     <Text style={styles.searchResultName}>{item.full_name}</Text>
                     <Text style={styles.searchResultDates}>
-                      {item.birth_date || 'Unknown'} {item.death_date ? `- ${item.death_date}` : ''}
+                      {toDisplayDate(item.birth_date, 'birth')} {item.death_date ? `- ${toDisplayDate(item.death_date, 'death')}` : ''}
                     </Text>
                   </View>
                   <Ionicons name="chevron-forward" size={20} color="#ccc" />

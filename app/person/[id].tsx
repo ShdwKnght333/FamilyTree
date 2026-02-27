@@ -1,12 +1,14 @@
 import { supabase } from '@/lib/supabase';
 import { FamilyMember, Union } from '@/types';
+import { toDisplayDate } from '@/utils/dateUtils';
 import { buildDeepHierarchy, generateReportHTML } from '@/utils/report';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as Print from 'expo-print';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import * as Sharing from 'expo-sharing';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const DEFAULT_PORTRAIT = require('@/assets/images/defaultPortrait.jpg');
@@ -110,9 +112,17 @@ export default function PersonDetail() {
         }
     };
 
-    useEffect(() => {
-        fetchPersonNode();
-    }, [id]);
+    useFocusEffect(
+        useCallback(() => {
+            // Lock to portrait when focus
+            async function lockOrientation() {
+                await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+            }
+            lockOrientation();
+
+            fetchPersonNode();
+        }, [id])
+    );
 
     if (loading) {
         return (
@@ -166,7 +176,7 @@ export default function PersonDetail() {
                     </View>
                     <Text style={styles.profileName}>{member.full_name}</Text>
                     <Text style={styles.profileDates}>
-                        {member.birth_date || 'Unknown'} - {member.death_date || 'Present'}
+                        {toDisplayDate(member.birth_date, 'birth')} - {toDisplayDate(member.death_date, 'death') || 'Present'}
                     </Text>
                 </View>
 

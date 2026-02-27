@@ -1,4 +1,5 @@
 import { FamilyMember, Union } from '../types';
+import { toDisplayDate } from './dateUtils';
 
 export interface ReportNode extends FamilyMember {
     spouses: FamilyMember[];
@@ -81,12 +82,12 @@ export function generateReportHTML(rootNodes: ReportNode[]): string {
                 <div class="couple-container">
                     <div class="node-box root-box">
                         <div class="name">${node.full_name}</div>
-                        <div class="dates">${node.birth_date || 'Unknown'} - ${node.death_date || 'Present'}</div>
+                        <div class="dates">${toDisplayDate(node.birth_date, 'birth')} - ${toDisplayDate(node.death_date, 'death') || 'Present'}</div>
                     </div>
                     <div class="couple-connector"></div>
                     <div class="node-box root-box spouse-box">
                         <div class="name">${spouse.full_name}</div>
-                        <div class="dates">${spouse.birth_date || 'Unknown'} - ${spouse.death_date || 'Present'}</div>
+                        <div class="dates">${toDisplayDate(spouse.birth_date, 'birth')} - ${toDisplayDate(spouse.death_date, 'death') || 'Present'}</div>
                     </div>
                 </div>
             `;
@@ -95,7 +96,7 @@ export function generateReportHTML(rootNodes: ReportNode[]): string {
             const spouseHtml = node.spouses.map(s => `
                 <div class="internal-spouse">
                     m. ${s.full_name} <br/> 
-                    <span class="dates">${s.birth_date || 'Unknown'} - ${s.death_date || 'Present'}</span>
+                    <span class="dates">${toDisplayDate(s.birth_date, 'birth')} - ${toDisplayDate(s.death_date, 'death') || 'Present'}</span>
                 </div>
             `).join('');
 
@@ -103,7 +104,7 @@ export function generateReportHTML(rootNodes: ReportNode[]): string {
                 <div class="node-box">
                     <div class="name">${node.full_name}</div>
                     ${spouseHtml}
-                    <div class="dates main-dates">${node.birth_date || 'Unknown'} - ${node.death_date || 'Present'}</div>
+                    <div class="dates main-dates">${toDisplayDate(node.birth_date, 'birth')} - ${toDisplayDate(node.death_date, 'death') || 'Present'}</div>
                 </div>
             `;
         }
@@ -272,14 +273,14 @@ export function generateReportHTML(rootNodes: ReportNode[]): string {
 
 export function generateTextReportHTML(rootNodes: ReportNode[]): string {
     const renderNodeText = (node: ReportNode, level: number = 0): string => {
-        const spouses = node.spouses.map(s => `${s.full_name} (${s.birth_date || 'Unknown'} - ${s.death_date || 'Present'})`).join(', ');
+        const spouses = node.spouses.map(s => `${s.full_name} (${toDisplayDate(s.birth_date, 'birth')} - ${toDisplayDate(s.death_date, 'death') || 'Present'})`).join(', ');
         const spouseText = spouses ? ` [Spouse(s): ${spouses}]` : '';
 
         let html = `
             <div class="text-node" style="margin-left: ${level * 30}px;">
                 <span class="bullet">•</span>
                 <span class="name">${node.full_name}</span>
-                <span class="dates">(${node.birth_date || 'Unknown'} - ${node.death_date || 'Present'})</span>
+                <span class="dates">(${toDisplayDate(node.birth_date, 'birth')} - ${toDisplayDate(node.death_date, 'death') || 'Present'})</span>
                 <span class="spouses">${spouseText}</span>
             </div>
         `;
